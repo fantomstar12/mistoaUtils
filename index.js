@@ -4,23 +4,21 @@ const {
     GatewayIntentBits, 
     PermissionsBitField, 
     EmbedBuilder,
-    ChannelType,
-    TimeUnit 
+    ChannelType 
 } = require('discord.js');
 const http = require('http');   // For the simple dashboard server
 const url = require('url');     // For parsing URL parameters
-// Node.js built-in module for URLSearchParams in POST body handling
 const { URLSearchParams } = require('url'); 
 
 // --- Bot Configuration & Secrets ---
 // Secrets are read from Render Environment Variables
 const TOKEN = process.env.DISCORD_TOKEN;
 const LOGGING_CHANNEL_ID = process.env.LOGGING_CHANNEL_ID;
-const CLIENT_ID = process.env.CLIENT_ID; // Used here for informational purposes
+const REQUIRED_ROLE_NAME = "Discord Moderator"; // The specific role name required to use moderation commands
 
 // WARNING: Hardcoded password is provided as requested, but generally unsafe.
 const ADMIN_PASSWORD = 'TeahouseAdmin232'; 
-const SERVER_PORT = process.env.PORT || 8080; // Render provides the PORT variable
+const SERVER_PORT = process.env.PORT || 8080; 
 
 // Create the Client instance with required Intents
 const client = new Client({ 
@@ -165,13 +163,29 @@ client.on('interactionCreate', async interaction => {
 
     const { commandName } = interaction;
     const moderator = interaction.user;
-    const member = interaction.member;
+    const member = interaction.member; // This is the GuildMember object
 
-    // A. Permission Check for All Moderation Commands
-    if (commandName !== 'ping' && !member.permissions.has(PermissionsBitField.Flags.KickMembers)) {
-        return interaction.reply({ content: 'You need the "Kick Members" permission (or higher) to run moderation commands.', ephemeral: true });
+    // --- A. Role and Permission Check for All Moderation Commands ---
+    // Note: 'ping' is excluded from the check
+    if (commandName !== 'ping') {
+        
+        // 1. Check if the user has the required specific role ("Discord Moderator")
+        const hasRequiredRole = member.roles.cache.some(role => role.name === REQUIRED_ROLE_NAME);
+        
+        // 2. Check for Administrator permission as a bypass/fallback
+        const isAdmin = member.permissions.has(PermissionsBitField.Flags.Administrator);
+
+        // Deny execution if they don't have the required role AND aren't an admin
+        if (!hasRequiredRole && !isAdmin) {
+             return interaction.reply({ 
+                content: `You need the **${REQUIRED_ROLE_NAME}** role or Administrator permissions to run this command.`, 
+                ephemeral: true 
+            });
+        }
     }
 
+    // --- B. Execute Commands ---
+    
     // --- /BAN COMMAND ---
     if (commandName === 'ban') {
         const userToBan = interaction.options.getUser('user');
@@ -248,7 +262,7 @@ client.on('interactionCreate', async interaction => {
         try {
             await userToTimeout.timeout(durationMs, reason);
             
-            const durationDisplay = `${Math.floor(durationSeconds / 60)} minutes`; // Simple conversion
+            const durationDisplay = `${Math.floor(durationSeconds / 60)} minutes`; 
             const actionVerb = isMute ? 'Muted' : 'Timed out';
 
             await interaction.reply({ 
@@ -278,17 +292,23 @@ client.on('interactionCreate', async interaction => {
     
     // --- /PURGE COMMAND (Bulk Delete) ---
     else if (commandName === 'purge') {
+        // Also check for the necessary Discord permission for purge, which is 'Manage Messages'
+        if (!member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
+             return interaction.reply({ 
+                content: `You must also have the "Manage Messages" permission to use the purge command.`, 
+                ephemeral: true 
+            });
+        }
+        
         const amount = interaction.options.getInteger('amount');
         
-        // Safety check for amount (Discord limit is 100)
         if (amount < 1 || amount > 100) {
             return interaction.reply({ content: 'You can only purge between 1 and 100 messages.', ephemeral: true });
         }
 
         try {
-            // Delete messages (1 is subtracted because we ignore the command message itself)
             const fetched = await interaction.channel.messages.fetch({ limit: amount });
-            const deleted = await interaction.channel.bulkDelete(fetched, true); // true to filter out messages older than 14 days
+            const deleted = await interaction.channel.bulkDelete(fetched, true); 
 
             await interaction.reply({ 
                 content: `Successfully deleted **${deleted.size}** messages.`, 
@@ -306,7 +326,6 @@ client.on('interactionCreate', async interaction => {
                 )
                 .setTimestamp();
             
-            // Wait a moment for the ephemeral reply to disappear, then send log
             setTimeout(() => {
                 sendLog(purgeLogEmbed);
             }, 3000); 
