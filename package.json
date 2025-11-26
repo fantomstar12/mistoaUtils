@@ -1,0 +1,19 @@
+{
+  "name": "my-simple-discord-bot",
+  "version": "1.0.0",
+  "description": "A simple bot created with discord.js",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "discord.js"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^14.15.3"
+  }
+}
