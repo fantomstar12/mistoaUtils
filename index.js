@@ -72,7 +72,7 @@ const server = http.createServer(async (req, res) => {
             const channelId = params.get('channelId');
             const message = params.get('message');
 
-            // 1. Password Protection Check
+            // 1. Password Protection Check (CRITICAL SERVER-SIDE CHECK)
             if (password !== ADMIN_PASSWORD) {
                 res.writeHead(403, { 'Content-Type': 'text/html' });
                 res.end('<h1>403 Forbidden: Invalid Password</h1>');
@@ -112,7 +112,7 @@ const server = http.createServer(async (req, res) => {
             }
         });
     } 
-    // Serve the simple dashboard form on GET requests
+    // Serve the simple dashboard form on GET requests (WITH CSS and LOGIN)
     else if (reqUrl.pathname === '/' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(`
@@ -120,20 +120,162 @@ const server = http.createServer(async (req, res) => {
             <html>
             <head>
                 <title>Bot Dashboard</title>
-                <style>body { font-family: sans-serif; }</style>
+                <style>
+                    body { 
+                        font-family: Arial, sans-serif; 
+                        background-color: #f4f4f9; 
+                        color: #333; 
+                        padding: 20px;
+                        line-height: 1.6;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        min-height: 100vh;
+                        margin: 0;
+                    }
+                    .container {
+                        max-width: 500px;
+                        width: 100%;
+                    }
+                    h1 {
+                        color: #5865f2;
+                        border-bottom: 2px solid #5865f2;
+                        padding-bottom: 10px;
+                        text-align: center;
+                    }
+                    h2 {
+                        color: #5865f2;
+                        text-align: center;
+                        margin-bottom: 20px;
+                    }
+                    form, #login-screen {
+                        background: white;
+                        padding: 20px;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                        margin-top: 20px;
+                    }
+                    label {
+                        display: block;
+                        margin-bottom: 5px;
+                        font-weight: bold;
+                        color: #555;
+                    }
+                    input[type="text"], 
+                    input[type="password"], 
+                    textarea {
+                        width: 100%;
+                        padding: 10px;
+                        margin-bottom: 15px;
+                        border: 1px solid #ccc;
+                        border-radius: 4px;
+                        box-sizing: border-box; 
+                    }
+                    textarea {
+                        resize: vertical;
+                    }
+                    button, input[type="submit"] {
+                        background-color: #5865f2;
+                        color: white;
+                        padding: 10px 15px;
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 16px;
+                        transition: background-color 0.3s ease;
+                        display: block;
+                        width: 100%;
+                        margin-top: 10px;
+                    }
+                    button:hover, input[type="submit"]:hover {
+                        background-color: #4752c4;
+                    }
+                    #logout-button {
+                        background-color: #f04747;
+                        margin-top: 20px;
+                    }
+                    #logout-button:hover {
+                        background-color: #c93b3b;
+                    }
+                    p {
+                        margin-top: 20px;
+                        font-size: 0.9em;
+                        color: #777;
+                    }
+                </style>
             </head>
             <body>
-                <h1>TeahouseAdmin Bot Dashboard</h1>
-                <form method="POST" action="/sendmessage">
-                    <label for="password">Password:</label><br>
-                    <input type="password" id="password" name="password" required><br><br>
-                    <label for="channelId">Channel ID:</label><br>
-                    <input type="text" id="channelId" name="channelId" required placeholder="e.g., 123456789012345678"><br><br>
-                    <label for="message">Message:</label><br>
-                    <textarea id="message" name="message" required rows="5" cols="50"></textarea><br><br>
-                    <input type="submit" value="Send Message to Channel">
-                </form>
-                <p><strong>Note:</strong> Channel ID can be copied by enabling Discord Developer Mode.</p>
+                <div class="container">
+                    <div id="login-screen">
+                        <h2>Teahouse Admin Login</h2>
+                        <form id="login-form">
+                            <label for="login-password">Password:</label>
+                            <input type="password" id="login-password" required>
+                            <button type="submit">Sign In</button>
+                            <p id="login-message" style="margin-top: 10px; text-align: center;"></p>
+                        </form>
+                    </div>
+
+                    <div id="admin-panel" style="display: none;">
+                        <h1>TeahouseAdmin Bot Dashboard</h1>
+                        <p>Welcome, Moderator. Use the form below to send a message as the bot.</p>
+                        
+                        <form method="POST" action="/sendmessage">
+                            <!-- Hidden input to carry the password for server-side validation -->
+                            <input type="hidden" id="auth-password" name="password">
+
+                            <label for="channelId">Channel ID:</label>
+                            <input type="text" id="channelId" name="channelId" required placeholder="e.g., 123456789012345678"><br>
+                            
+                            <label for="message">Message:</label>
+                            <textarea id="message" name="message" required rows="5" cols="50"></textarea><br>
+                            
+                            <input type="submit" value="Send Message to Channel">
+                        </form>
+                        <button id="logout-button" onclick="logout()">Sign Out</button>
+                        <p><strong>Note:</strong> Channel ID can be copied by enabling Discord Developer Mode.</p>
+                    </div>
+                </div>
+
+                <script>
+                    // IMPORTANT: The password is also defined here for the client-side UI gate. 
+                    // Server-side validation is still mandatory and implemented in the Node.js POST route.
+                    const ADMIN_PASSWORD_CLIENT = '${ADMIN_PASSWORD}'; 
+
+                    const loginScreen = document.getElementById('login-screen');
+                    const adminPanel = document.getElementById('admin-panel');
+                    const loginForm = document.getElementById('login-form');
+                    const loginPasswordInput = document.getElementById('login-password');
+                    const loginMessage = document.getElementById('login-message');
+                    const authPasswordInput = document.getElementById('auth-password');
+
+                    loginForm.addEventListener('submit', function(e) {
+                        e.preventDefault();
+                        const passwordInput = loginPasswordInput.value;
+
+                        if (passwordInput === ADMIN_PASSWORD_CLIENT) {
+                            // Success: Hide login, show panel, and set the password field for POST requests
+                            loginScreen.style.display = 'none';
+                            adminPanel.style.display = 'block';
+                            authPasswordInput.value = passwordInput; 
+                            loginMessage.textContent = '';
+                            loginMessage.style.color = 'inherit';
+                        } else {
+                            // Failure: Show error message
+                            loginMessage.textContent = '❌ Invalid password. Please try again.';
+                            loginMessage.style.color = 'red';
+                        }
+                    });
+
+                    function logout() {
+                        authPasswordInput.value = '';
+                        loginScreen.style.display = 'block';
+                        adminPanel.style.display = 'none';
+                        loginPasswordInput.value = ''; // Clear password field
+                        loginMessage.textContent = 'Signed out successfully.';
+                        loginMessage.style.color = 'green';
+                    }
+                </script>
             </body>
             </html>
         `);
@@ -163,10 +305,9 @@ client.on('interactionCreate', async interaction => {
 
     const { commandName } = interaction;
     const moderator = interaction.user;
-    const member = interaction.member; // This is the GuildMember object
+    const member = interaction.member; 
 
     // --- A. Role and Permission Check for All Moderation Commands ---
-    // Note: 'ping' is excluded from the check
     if (commandName !== 'ping') {
         
         // 1. Check if the user has the required specific role ("Discord Moderator")
@@ -292,7 +433,7 @@ client.on('interactionCreate', async interaction => {
     
     // --- /PURGE COMMAND (Bulk Delete) ---
     else if (commandName === 'purge') {
-        // Also check for the necessary Discord permission for purge, which is 'Manage Messages'
+        // Must also check for the necessary Discord permission for purge ('Manage Messages')
         if (!member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
              return interaction.reply({ 
                 content: `You must also have the "Manage Messages" permission to use the purge command.`, 
