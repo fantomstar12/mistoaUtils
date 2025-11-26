@@ -2,7 +2,7 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 
 // Replace 'YOUR_BOT_TOKEN_HERE' with your actual bot token
-const token = 'MTQ0MzMxNjg0MDMzOTIxMDM1Mw.GNrsSy.m6VwB8k1_6XUufgzWe4lhxEz_QbaNP1YehYA5A'; 
+const token = process.env.DISCORD_TOKEN; 
 
 // Create a new client instance with necessary intents
 // Intents tell Discord which events your bot needs to listen to.
