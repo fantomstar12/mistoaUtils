@@ -2,7 +2,7 @@
 const { REST, Routes, ApplicationCommandOptionType } = require('discord.js');
 
 // IMPORTANT: Replace this placeholder with your actual bot's Client ID (Application ID)!
-const CLIENT_ID = 'YOUR_BOT_CLIENT_ID'; 
+const CLIENT_ID = '1443316840339210353'; 
 
 // The script will try to read the token from your local environment variables.
 // You can set this temporarily in your terminal for the run: export DISCORD_TOKEN="your_token_here"
